@@ -5,11 +5,15 @@ import platform
 from colorama import Back, Fore, Style
 import time
 from config import BOT_TOKEN, BOT_PREFIX
+import logging
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class Client(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix=commands.when_mentioned_or(BOT_PREFIX), intents=discord.Intents().all())
-
         self.cogslist = ["cogs.music", "cogs.cmd", "cogs.admin"]
 
     async def setup_hook(self):
