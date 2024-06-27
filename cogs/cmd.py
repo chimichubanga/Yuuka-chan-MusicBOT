@@ -1,3 +1,5 @@
+# cogs/cmd.py
+
 import discord
 from discord.ext import commands
 from config import WELCOME_ROLE_ID
@@ -8,10 +10,6 @@ logger = logging.getLogger(__name__)
 class Cmd(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        logger.info(f"{self.bot.user} готова к работе, сенсей!")
 
     @commands.Cog.listener()
     async def on_member_join(self, member):

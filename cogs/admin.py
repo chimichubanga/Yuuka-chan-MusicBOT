@@ -28,7 +28,7 @@ class Admin(commands.Cog):
         await interaction.response.send_message(f"Очищено {limit} сообщений, сенсей.", ephemeral=True)
         await interaction.channel.purge(limit=limit)
 
-    @app_commands.command(name="ping", description="Проверить задержку бота")
+    @app_commands.command(name="пинг", description="Проверить задержку бота")
     async def ping(self, interaction: discord.Interaction):
         latency = self.bot.latency * 1000  # Преобразуем задержку в миллисекунды
         await interaction.response.send_message(f"Понг! Задержка: {latency:.2f}мс", ephemeral=True)
