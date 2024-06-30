@@ -1,9 +1,7 @@
-# cogs/admin.py
-
 import discord
 from discord.ext import commands
 from discord import app_commands
-from config import OWNER_ID
+from config.settings import OWNER_ID
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,6 +30,28 @@ class Admin(commands.Cog):
     async def ping(self, interaction: discord.Interaction):
         latency = self.bot.latency * 1000  # Преобразуем задержку в миллисекунды
         await interaction.response.send_message(f"Понг! Задержка: {latency:.2f}мс", ephemeral=True)
+
+    @app_commands.command(name="юзеринфо", description="Получить информацию о пользователе")
+    async def userinfo(self, interaction: discord.Interaction, member: discord.Member):
+        embed = discord.Embed(title=f"Информация о пользователе {member.name}", color=0x1E90FF)
+        embed.add_field(name="ID пользователя", value=member.id, inline=True)
+        embed.add_field(name="Имя", value=member.display_name, inline=True)
+        embed.add_field(name="Создан", value=member.created_at.strftime("%d/%m/%Y %H:%M:%S"), inline=True)
+        embed.add_field(name="Присоединился", value=member.joined_at.strftime("%d/%m/%Y %H:%M:%S"), inline=True)
+        embed.set_thumbnail(url=member.avatar.url)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="серверинфо", description="Получить информацию о сервере")
+    async def serverinfo(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        embed = discord.Embed(title=f"Информация о сервере {guild.name}", color=0x1E90FF)
+        embed.add_field(name="ID сервера", value=guild.id, inline=True)
+        embed.add_field(name="Создан", value=guild.created_at.strftime("%d/%m/%Y %H:%M:%S"), inline=True)
+        embed.add_field(name="Владелец", value=guild.owner.mention, inline=True)
+        embed.add_field(name="Участники", value=guild.member_count, inline=True)
+        embed.set_thumbnail(url=guild.icon.url)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
 
 async def setup(bot):
     await bot.add_cog(Admin(bot))

@@ -4,82 +4,38 @@ import asyncio
 import platform
 from colorama import Back, Fore, Style
 import time
-from config import BOT_TOKEN, BOT_PREFIX
+import os
+from config.settings import BOT_TOKEN, BOT_PREFIX
 import logging
-from tqdm import tqdm
-from tqdm.contrib.logging import logging_redirect_tqdm
+from utils.progress_bar import ProgressBar
+from utils.logger import setup_logging
 
-# Настройка логирования
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Настройка логирования для библиотеки discord.py
-logging.getLogger('discord.client').setLevel(logging.WARNING)
-logging.getLogger('discord.gateway').setLevel(logging.WARNING)
-logging.getLogger('discord.player').setLevel(logging.WARNING)
-logging.getLogger('discord.voice_client').setLevel(logging.WARNING)
+setup_logging()
 
 class Client(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix=commands.when_mentioned_or(BOT_PREFIX), intents=discord.Intents().all())
-        self.cogslist = ["cogs.music", "cogs.cmd", "cogs.admin"]
-        # Установим количество шагов прогресс-бара в зависимости от количества когов и дополнительных этапов
-        self.total_steps = 100
-        self.steps_per_stage = self.total_steps // (len(self.cogslist) + 5)
-        self.loading_bar = tqdm(total=self.total_steps, desc="Запуск бота", bar_format="{l_bar}{bar} [Время: {elapsed}]", ncols=100)
+        self.cogslist = ["cogs.music", "cogs.cmd", "cogs.admin", "cogs.games"]
+        self.progress_bar = ProgressBar(len(self.cogslist) + 5)
 
     async def setup_hook(self):
-        # Шаг 1: Проверка конфигурации
-        self.loading_bar.set_description("Проверка конфигурации")
-        for _ in range(self.steps_per_stage):
-            await asyncio.sleep(0.05)  # Пауза для плавного увеличения
-            self.loading_bar.update(1)
-
-        # Шаг 2: Загрузка библиотек
-        self.loading_bar.set_description("Загрузка библиотек")
-        for _ in range(self.steps_per_stage):
-            await asyncio.sleep(0.05)  # Пауза для плавного увеличения
-            self.loading_bar.update(1)
-
-        # Шаг 3: Загрузка когов
-        for ext in self.cogslist:
-            self.loading_bar.set_description(f"Загрузка {ext}")
-            await self.load_extension(ext)
-            for _ in range(self.steps_per_stage):
-                await asyncio.sleep(0.05)  # Пауза для плавного увеличения
-                self.loading_bar.update(1)
-
-        # Шаг 4: Установка соединений
-        self.loading_bar.set_description("Установка соединений")
-        for _ in range(self.steps_per_stage):
-            await asyncio.sleep(0.05)  # Пауза для плавного увеличения
-            self.loading_bar.update(1)
+        stages = ["Проверка конфигурации", "Загрузка библиотек", "Загрузка когов", "Установка соединений", "Синхронизация команд", "Финализация запуска"]
+        for stage in stages:
+            self.progress_bar.update_stage(stage)
+            await asyncio.sleep(0.05)
+            if stage == "Загрузка когов":
+                for ext in self.cogslist:
+                    await self.load_extension(ext)
+                    self.progress_bar.update_stage(f"Загрузка {ext}")
 
     async def on_ready(self):
-        # Шаг 5: Синхронизация команд
-        self.loading_bar.set_description("Синхронизация команд")
-        synced = await self.tree.sync()
-        for _ in range(self.steps_per_stage):
-            await asyncio.sleep(0.05)  # Пауза для плавного увеличения
-            self.loading_bar.update(1)
+        self.progress_bar.finish()
+        
+        # Очистка консоли
+        await self.clear_console()
 
-        # Шаг 6: Финализация запуска
-        self.loading_bar.set_description("Финализация запуска")
-        for _ in range(self.steps_per_stage):
-            await asyncio.sleep(0.05)  # Пауза для плавного увеличения
-            self.loading_bar.update(1)
+        prfx = (Fore.CYAN + time.strftime("%H:%M:%S UTC", time.gmtime()) + Back.RESET + Fore.WHITE + Style.BRIGHT)
 
-        # Обновим оставшиеся шаги, если прогресс-бар еще не заполнен
-        remaining_steps = self.total_steps - self.loading_bar.n
-        self.loading_bar.set_description("Бот готов к работе")
-        for _ in range(remaining_steps):
-            await asyncio.sleep(0.05)
-            self.loading_bar.update(1)
-        self.loading_bar.close()
-
-        prfx = (Back.BLACK + Fore.CYAN + time.strftime("%H:%M:%S UTC", time.gmtime()) + Back.RESET + Fore.WHITE + Style.BRIGHT)
-
-        # Тематическое сообщение
         print(Style.BRIGHT + Fore.CYAN + "╔═════════════════════════════════════════════════════════╗")
         print(Fore.CYAN + "║" + Style.BRIGHT + Fore.LIGHTBLUE_EX + "          Yuuka-chan готова к работе, сенсей!            " + Fore.CYAN + "║")
         print(Fore.CYAN + "╚═════════════════════════════════════════════════════════╝" + Style.RESET_ALL)
@@ -87,12 +43,16 @@ class Client(commands.Bot):
         print(prfx + Fore.LIGHTBLUE_EX + " 🆔 ID бота: " + Fore.YELLOW + str(self.user.id))
         print(prfx + Fore.LIGHTBLUE_EX + " 📅 Версия Discord: " + Fore.YELLOW + discord.__version__)
         print(prfx + Fore.LIGHTBLUE_EX + " 🐍 Версия Python: " + Fore.YELLOW + str(platform.python_version()))
-        print(prfx + Fore.LIGHTBLUE_EX + " 🎵 Slash CMDs синхронизированы: " + Fore.YELLOW + str(len(synced)) + " команд")
+        print(prfx + Fore.LIGHTBLUE_EX + " 🎵 Slash CMDs синхронизированы: " + Fore.YELLOW + str(len(await self.tree.sync())) + " команд")
         print(Fore.CYAN + "╔═════════════════════════════════════════════════════════╗")
         print(Fore.CYAN + "║" + Style.BRIGHT + Fore.LIGHTBLUE_EX + "          Yuuka-chan в вашем распоряжении, сенсей!       " + Fore.CYAN + "║")
         print(Fore.CYAN + "╚═════════════════════════════════════════════════════════╝" + Style.RESET_ALL)
 
+    async def clear_console(self):
+        # Определение команды для очистки консоли в зависимости от операционной системы
+        command = "cls" if platform.system() == "Windows" else "clear"
+        os.system(command)
+
 if __name__ == "__main__":
-    with logging_redirect_tqdm():
-        client = Client()
-        client.run(BOT_TOKEN)
+    client = Client()
+    client.run(BOT_TOKEN)
