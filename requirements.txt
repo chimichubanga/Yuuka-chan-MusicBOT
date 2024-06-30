@@ -1,0 +1,7 @@
+discord.py
+yt-dlp
+youtube-search-python
+pytube
+tqdm
+colorama
+python-dotenv

@@ -1,8 +1,6 @@
-# cogs/cmd.py
-
 import discord
 from discord.ext import commands
-from config import WELCOME_ROLE_ID
+from config.settings import WELCOME_ROLE_ID
 import logging
 
 logger = logging.getLogger(__name__)

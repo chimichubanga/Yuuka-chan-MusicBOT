@@ -1,3 +1,6 @@
+# cogs/music.py
+
+
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -6,8 +9,10 @@ import asyncio
 import logging
 from youtube_search import YoutubeSearch
 from pytube import YouTube
+from config.settings import YOUTUBE_API_KEY
 
 logger = logging.getLogger(__name__)
+
 
 class GuildMusicPlayer:
     def __init__(self, bot, guild):
@@ -170,9 +175,12 @@ class MusicView(discord.ui.View):
         except Exception as e:
             await interaction.followup.send(f'Произошла ошибка: {e}', ephemeral=True)
 
+
+
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.youtube_api_key = YOUTUBE_API_KEY
         self.players = {}
 
     def get_player(self, guild):
