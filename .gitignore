@@ -2,3 +2,6 @@
 */__pycache__/
 /.env
 /.vs
+/tests/
+conftest.py
+.pytest_cache

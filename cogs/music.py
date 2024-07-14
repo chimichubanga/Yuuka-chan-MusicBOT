@@ -1,6 +1,5 @@
 # cogs/music.py
 
-
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -13,7 +12,6 @@ from config.settings import YOUTUBE_API_KEY
 
 logger = logging.getLogger(__name__)
 
-
 class GuildMusicPlayer:
     def __init__(self, bot, guild):
         self.bot = bot
@@ -24,6 +22,7 @@ class GuildMusicPlayer:
         self.current = None
         self.loop = False
         self.message = None
+        self.afk_timer = None
         self.ffmpeg_options = {
             'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
             'options': '-vn -af aresample=async=1'
@@ -35,8 +34,9 @@ class GuildMusicPlayer:
 
     def add_to_queue(self, yt, stream_url, interaction):
         self.queue.append((yt, stream_url, interaction))
+        self.cancel_afk_timer()
 
-    def play_next(self):
+    async def play_next(self):
         if self.queue:
             if self.current:
                 self.history.append(self.current)
@@ -44,26 +44,27 @@ class GuildMusicPlayer:
                     self.history.pop(0)
             self.current = self.queue.pop(0)
             yt, stream_url, interaction = self.current
-            self.voice_client.play(discord.FFmpegPCMAudio(stream_url, **self.ffmpeg_options), after=self.after_playback)
-            asyncio.run_coroutine_threadsafe(self.send_now_playing_message(yt), self.bot.loop)
+            self.voice_client.play(discord.FFmpegPCMAudio(stream_url, **self.ffmpeg_options), after=lambda e: self.bot.loop.create_task(self.after_playback(e)))
+            await self.send_now_playing_message(yt)
         else:
             self.current = None
+            self.start_afk_timer()
 
-    def play_previous(self):
+    async def play_previous(self):
         if self.history:
             if self.current:
                 self.queue.insert(0, self.current)
             self.current = self.history.pop()
             yt, stream_url, interaction = self.current
-            self.voice_client.play(discord.FFmpegPCMAudio(stream_url, **self.ffmpeg_options), after=self.after_playback)
-            asyncio.run_coroutine_threadsafe(self.send_now_playing_message(yt), self.bot.loop)
+            self.voice_client.play(discord.FFmpegPCMAudio(stream_url, **self.ffmpeg_options), after=lambda e: self.bot.loop.create_task(self.after_playback(e)))
+            await self.send_now_playing_message(yt)
         else:
-            asyncio.run_coroutine_threadsafe(self.send_no_previous_message(), self.bot.loop)
+            await self.send_no_previous_message()
 
     async def send_now_playing_message(self, yt):
         embed = discord.Embed(
-            title=yt.title, 
-            description=f"Длительность: {yt.length // 60}:{yt.length % 60:02d}", 
+            title=yt.title,
+            description=f"Длительность: {yt.length // 60}:{yt.length % 60:02d}",
             color=0x1E90FF
         )
         embed.set_footer(text=f"added by {self.current[2].user.display_name}")
@@ -77,18 +78,33 @@ class GuildMusicPlayer:
 
     async def send_no_previous_message(self):
         if self.message:
-            await self.message.channel.send("Нет предыдущего трека в истории.", delete_after=10, ephemeral=True)
+            await self.message.channel.send("Нет предыдущего трека в истории.", delete_after=10)
 
     def play(self):
-        self.play_next()
+        asyncio.run_coroutine_threadsafe(self.play_next(), self.bot.loop)
 
-    def after_playback(self, error):
+    async def after_playback(self, error):
         if error:
             logger.error(f'Error during playback: {error}')
         if self.loop and self.current:
             yt, stream_url, interaction = self.current
             self.queue.insert(0, (yt, stream_url, interaction))
-        self.play_next()
+        await self.play_next()
+
+    def start_afk_timer(self):
+        if self.afk_timer:
+            self.afk_timer.cancel()
+        self.afk_timer = self.bot.loop.call_later(300, lambda: asyncio.run_coroutine_threadsafe(self.disconnect_afk(), self.bot.loop))
+
+    def cancel_afk_timer(self):
+        if self.afk_timer:
+            self.afk_timer.cancel()
+            self.afk_timer = None
+
+    async def disconnect_afk(self):
+        if self.voice_client and self.voice_client.is_connected():
+            await self.voice_client.disconnect()
+            logger.info(f"Bot disconnected from {self.guild.name} due to inactivity.")
 
 class MusicView(discord.ui.View):
     def __init__(self, player):
@@ -129,7 +145,7 @@ class MusicView(discord.ui.View):
     async def previous(self, interaction: discord.Interaction):
         if self.player.voice_client.is_playing() or self.player.voice_client.is_paused():
             self.player.voice_client.stop()
-        self.player.play_previous()
+        await self.player.play_previous()
         self.update_play_pause_button()
         await interaction.response.defer()
 
@@ -151,7 +167,7 @@ class MusicView(discord.ui.View):
     async def next(self, interaction: discord.Interaction):
         if self.player.voice_client.is_playing() or self.player.voice_client.is_paused():
             self.player.voice_client.stop()
-        self.player.play_next()
+        await self.player.play_next()
         self.update_play_pause_button()
         try:
             await interaction.response.defer()
@@ -174,8 +190,6 @@ class MusicView(discord.ui.View):
                 await interaction.followup.send("В данный момент ничего не воспроизводится.", ephemeral=True)
         except Exception as e:
             await interaction.followup.send(f'Произошла ошибка: {e}', ephemeral=True)
-
-
 
 class Music(commands.Cog):
     def __init__(self, bot):
