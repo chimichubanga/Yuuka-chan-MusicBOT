@@ -11,6 +11,7 @@ class Cmd(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
+        # Обработка события присоединения нового участника
         role = member.guild.get_role(int(WELCOME_ROLE_ID))
         if role is not None:
             await member.add_roles(role)

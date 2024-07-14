@@ -10,16 +10,23 @@ import logging
 from utils.progress_bar import ProgressBar
 from utils.logger import setup_logging
 
+# Настройка логирования
 setup_logging()
 
 class Client(commands.Bot):
     def __init__(self):
+        # Инициализация клиента бота с префиксом и всеми интентами
         super().__init__(command_prefix=commands.when_mentioned_or(BOT_PREFIX), intents=discord.Intents().all())
         self.cogslist = ["cogs.music", "cogs.cmd", "cogs.admin", "cogs.games"]
         self.progress_bar = ProgressBar(len(self.cogslist) + 5)
 
     async def setup_hook(self):
-        stages = ["Проверка конфигурации", "Загрузка библиотек", "Загрузка когов", "Установка соединений", "Синхронизация команд", "Финализация запуска"]
+        # Этапы запуска бота
+        stages = [
+            "Проверка конфигурации", "Загрузка библиотек", 
+            "Загрузка когов", "Установка соединений", 
+            "Синхронизация команд", "Финализация запуска"
+        ]
         for stage in stages:
             self.progress_bar.update_stage(stage)
             await asyncio.sleep(0.05)
@@ -30,12 +37,14 @@ class Client(commands.Bot):
 
     async def on_ready(self):
         self.progress_bar.finish()
-        
-        # Очистка консоли
         await self.clear_console()
 
-        prfx = (Fore.CYAN + time.strftime("%H:%M:%S UTC", time.gmtime()) + Back.RESET + Fore.WHITE + Style.BRIGHT)
+        prfx = (
+            Fore.CYAN + time.strftime("%H:%M:%S UTC", time.gmtime()) + 
+            Back.RESET + Fore.WHITE + Style.BRIGHT
+        )
 
+        # Сообщение о готовности бота
         print(Style.BRIGHT + Fore.CYAN + "╔═════════════════════════════════════════════════════════╗")
         print(Fore.CYAN + "║" + Style.BRIGHT + Fore.LIGHTBLUE_EX + "          Yuuka-chan готова к работе, сенсей!            " + Fore.CYAN + "║")
         print(Fore.CYAN + "╚═════════════════════════════════════════════════════════╝" + Style.RESET_ALL)
@@ -54,5 +63,6 @@ class Client(commands.Bot):
         os.system(command)
 
 if __name__ == "__main__":
+    # Запуск бота
     client = Client()
     client.run(BOT_TOKEN)
