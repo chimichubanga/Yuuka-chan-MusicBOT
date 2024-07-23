@@ -4,8 +4,10 @@ from discord import app_commands
 from config.settings import OWNER_ID
 import logging
 
+# Настройка логирования для данного модуля
 logger = logging.getLogger(__name__)
 
+# Ког (расширение) для административных команд
 class Admin(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -57,5 +59,6 @@ class Admin(commands.Cog):
         embed.set_thumbnail(url=guild.icon.url)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+# Функция для добавления кода в бот
 async def setup(bot):
     await bot.add_cog(Admin(bot))

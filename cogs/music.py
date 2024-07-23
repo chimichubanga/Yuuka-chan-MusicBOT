@@ -1,3 +1,4 @@
+# Импорт необходимых библиотек и модулей
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -8,19 +9,22 @@ from youtube_search import YoutubeSearch
 from pytube import YouTube
 from config.settings import YOUTUBE_API_KEY
 
+# Настройка логирования для данного модуля
 logger = logging.getLogger(__name__)
 
+# Класс для управления музыкой на сервере
 class GuildMusicPlayer:
     def __init__(self, bot, guild):
         self.bot = bot
         self.guild = guild
-        self.voice_client = None
-        self.queue = []
-        self.history = []
-        self.current = None
-        self.loop = False
-        self.message = None
-        self.afk_timer = None
+        self.voice_client = None  # Клиент голосового канала
+        self.queue = []  # Очередь воспроизведения
+        self.history = []  # История воспроизведения
+        self.current = None  # Текущий трек
+        self.loop = False  # Режим повтора
+        self.message = None  # Сообщение о текущем треке
+        self.afk_timer = None  # Таймер бездействия
+        # Опции для FFMPEG, используемого для воспроизведения аудио
         self.ffmpeg_options = {
             'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
             'options': '-vn -af aresample=async=1'
@@ -37,14 +41,16 @@ class GuildMusicPlayer:
         self.cancel_afk_timer()
 
     async def play_next(self):
-        # Воспроизведение следующего трека
+        # Воспроизведение следующего трека из очереди
         if self.queue:
             if self.current:
+                # Добавление текущего трека в историю
                 self.history.append(self.current)
                 if len(self.history) > 6:
                     self.history.pop(0)
             self.current = self.queue.pop(0)
             yt, stream_url, interaction = self.current
+            # Воспроизведение следующего трека
             self.voice_client.play(discord.FFmpegPCMAudio(stream_url, **self.ffmpeg_options), after=lambda e: self.bot.loop.create_task(self.after_playback(e)))
             await self.send_now_playing_message(yt)
         else:
@@ -52,19 +58,21 @@ class GuildMusicPlayer:
             self.start_afk_timer()
 
     async def play_previous(self):
-        # Воспроизведение предыдущего трека
+        # Воспроизведение предыдущего трека из истории
         if self.history:
             if self.current:
+                # Возвращение текущего трека в очередь
                 self.queue.insert(0, self.current)
             self.current = self.history.pop()
             yt, stream_url, interaction = self.current
+            # Воспроизведение предыдущего трека
             self.voice_client.play(discord.FFmpegPCMAudio(stream_url, **self.ffmpeg_options), after=lambda e: self.bot.loop.create_task(self.after_playback(e)))
             await self.send_now_playing_message(yt)
         else:
             await self.send_no_previous_message()
 
     async def send_now_playing_message(self, yt):
-        # Отправка сообщения о текущем треке
+        # Отправка сообщения о текущем воспроизводимом треке
         embed = discord.Embed(
             title=yt.title,
             description=f"Длительность: {yt.length // 60}:{yt.length % 60:02d}",
@@ -80,16 +88,16 @@ class GuildMusicPlayer:
             self.message = await channel.send(embed=embed, view=MusicView(self))
 
     async def send_no_previous_message(self):
-        # Отправка сообщения об отсутствии предыдущих треков
+        # Отправка сообщения об отсутствии предыдущих треков в истории
         if self.message:
             await self.message.channel.send("Нет предыдущего трека в истории.", delete_after=10)
 
     def play(self):
-        # Начало воспроизведения
+        # Начало воспроизведения следующего трека
         asyncio.run_coroutine_threadsafe(self.play_next(), self.bot.loop)
 
     async def after_playback(self, error):
-        # Действия после окончания воспроизведения
+        # Действия после окончания воспроизведения трека
         if error:
             logger.error(f'Error during playback: {error}')
         if self.loop and self.current:
@@ -115,6 +123,7 @@ class GuildMusicPlayer:
             await self.voice_client.disconnect()
             logger.info(f"Bot disconnected from {self.guild.name} due to inactivity.")
 
+# Класс для интерфейса управления музыкой через кнопки
 class MusicView(discord.ui.View):
     def __init__(self, player):
         super().__init__(timeout=None)
@@ -145,7 +154,7 @@ class MusicView(discord.ui.View):
         self.add_item(self.stop_button)
 
     def update_play_pause_button(self):
-        # Обновление кнопки воспроизведения/паузы
+        # Обновление состояния кнопки воспроизведения/паузы
         if self.player.voice_client and self.player.voice_client.is_playing():
             self.play_pause_button.emoji = "⏸️"
         else:
@@ -207,6 +216,7 @@ class MusicView(discord.ui.View):
         except Exception as e:
             await interaction.followup.send(f'Произошла ошибка: {e}', ephemeral=True)
 
+# Ког (расширение) для управления музыкой
 class Music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -221,6 +231,7 @@ class Music(commands.Cog):
 
     @app_commands.command(name="присоединиться", description="Присоединить Yuuka-chan к голосовому каналу")
     async def join(self, interaction: discord.Interaction):
+        # Команда для присоединения бота к голосовому каналу
         if interaction.user.voice is None or interaction.user.voice.channel is None:
             await interaction.response.send_message("Сенсей, пожалуйста, зайдите в голосовой канал, чтобы Yuuka-chan могла присоединиться.", ephemeral=True)
             return
@@ -232,6 +243,7 @@ class Music(commands.Cog):
 
     @app_commands.command(name="отключится", description="Отключить Yuuka-chan от голосового канала")
     async def disconnect(self, interaction: discord.Interaction):
+        # Команда для отключения бота от голосового канала
         player = self.get_player(interaction.guild)
         if player.voice_client is not None and player.voice_client.is_connected():
             await player.voice_client.disconnect()
@@ -241,6 +253,7 @@ class Music(commands.Cog):
 
     @app_commands.command(name="играть", description="Воспроизвести музыку по запросу")
     async def play(self, interaction: discord.Interaction, запрос: str):
+        # Команда для воспроизведения музыки
         voice_state = interaction.guild.get_member(interaction.user.id).voice
         if voice_state is None or voice_state.channel is None:
             await interaction.response.send_message("Вы должны быть в голосовом канале, чтобы использовать эту команду.", ephemeral=True)
@@ -252,6 +265,7 @@ class Music(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         try:
+            # Поиск видео на YouTube по запросу
             if запрос.startswith("http"):
                 video_url = запрос
             else:
@@ -261,20 +275,24 @@ class Music(commands.Cog):
                     return
                 video_url = "https://www.youtube.com" + results[0]['url_suffix']
 
+            # Опции для загрузчика YouTube
             ydl_opts = {
                 'format': 'bestaudio/best',
                 'quiet': True,
                 'extract_flat': 'in_playlist'
             }
 
+            # Получение информации о видео и URL для потока
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(video_url, download=False)
                 stream_url = info['url']
 
             yt = YouTube(video_url)
 
+            # Добавление трека в очередь
             player.add_to_queue(yt, stream_url, interaction)
 
+            # Начало воспроизведения, если плеер не занят
             if not player.voice_client.is_playing():
                 player.play()
 
@@ -285,6 +303,7 @@ class Music(commands.Cog):
 
     @app_commands.command(name="плеер", description="Показать текущий плеер")
     async def show_player(self, interaction: discord.Interaction):
+        # Команда для отображения текущего состояния плеера
         player = self.get_player(interaction.guild)
 
         if player.message:
@@ -299,6 +318,7 @@ class Music(commands.Cog):
 
     @app_commands.command(name="stop", description="Остановить воспроизведение музыки")
     async def stop(self, interaction: discord.Interaction):
+        # Команда для остановки воспроизведения музыки
         player = self.get_player(interaction.guild)
         if player.voice_client and player.voice_client.is_playing():
             player.voice_client.stop()
@@ -308,6 +328,7 @@ class Music(commands.Cog):
 
     @app_commands.command(name="pause", description="Приостановить воспроизведение музыки")
     async def pause(self, interaction: discord.Interaction):
+        # Команда для приостановки воспроизведения музыки
         player = self.get_player(interaction.guild)
         if player.voice_client and player.voice_client.is_playing():
             player.voice_client.pause()
@@ -317,6 +338,7 @@ class Music(commands.Cog):
 
     @app_commands.command(name="resume", description="Возобновить воспроизведение музыки")
     async def resume(self, interaction: discord.Interaction):
+        # Команда для возобновления воспроизведения музыки
         player = self.get_player(interaction.guild)
         if player.voice_client and player.voice_client.is_paused():
             player.voice_client.resume()
@@ -326,6 +348,7 @@ class Music(commands.Cog):
 
     @app_commands.command(name="repeat", description="Включить/выключить повтор текущей песни")
     async def repeat(self, interaction: discord.Interaction):
+        # Команда для включения/выключения повтора текущего трека
         player = self.get_player(interaction.guild)
         if player.voice_client and player.voice_client.is_playing():
             player.loop = not player.loop
@@ -333,5 +356,6 @@ class Music(commands.Cog):
         else:
             await interaction.response.send_message("Yuuka-chan не воспроизводит музыку, сенсей.", ephemeral=True)
 
+# Функция для добавления кода в бот
 async def setup(bot):
     await bot.add_cog(Music(bot))
