@@ -7,6 +7,7 @@ import asyncio
 import logging
 from youtube_search import YoutubeSearch
 from pytube import YouTube
+from youtubesearchpython import VideosSearch
 from config.settings import YOUTUBE_API_KEY
 
 # Настройка логирования для данного модуля

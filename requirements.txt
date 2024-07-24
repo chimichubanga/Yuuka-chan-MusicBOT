@@ -1,7 +1,9 @@
 discord.py
 yt-dlp
 youtube-search-python
+youtube-search
 pytube
 tqdm
 colorama
 python-dotenv
+ffmpeg
