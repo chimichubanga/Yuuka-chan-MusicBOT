@@ -6,4 +6,5 @@ pytube
 tqdm
 colorama
 python-dotenv
+PyNaCl
 ffmpeg
