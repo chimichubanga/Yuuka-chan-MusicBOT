@@ -72,12 +72,12 @@ class GuildMusicPlayer:
     async def send_now_playing_message(self, yt):
         # Отправка сообщения о текущем треке
         embed = discord.Embed(
-            title=yt.title,
-            description=f"Длительность: {yt.length // 60}:{yt.length % 60:02d}",
+            title=yt['title'],
+            description=f"Длительность: {yt['length'] // 60}:{yt['length'] % 60:02d}",
             color=0x1E90FF
         )
         embed.set_footer(text=f"added by {self.current[2].user.display_name}")
-        embed.set_thumbnail(url=yt.thumbnail_url)
+        embed.set_thumbnail(url=yt['thumbnail_url'])
 
         if self.message:
             try:
@@ -272,7 +272,8 @@ class Music(commands.Cog):
         # Команда для воспроизведения музыки по запросу
         voice_state = interaction.guild.get_member(interaction.user.id).voice
         if voice_state is None or voice_state.channel is None:
-            await interaction.response.send_message("Вы должны быть в голосовом канале, чтобы использовать эту команду.", ephemeral=True)
+            await interaction.response.send_message(
+                "Вы должны быть в голосовом канале, чтобы использовать эту команду.", ephemeral=True)
             return
 
         player = self.get_player(interaction.guild)
@@ -293,27 +294,28 @@ class Music(commands.Cog):
             ydl_opts = {
                 'format': 'bestaudio/best',
                 'quiet': True,
-                'extract_flat': 'in_playlist',
                 'noplaylist': True,
-                'extractor_args': {
-                    'youtube': {
-                        'skip': ['dash']
-                    }
-                }
+                'extract_flat': True,
             }
 
+            # Используем yt-dlp для извлечения информации о видео
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(video_url, download=False)
                 stream_url = info['url']
 
-            yt = YouTube(video_url)
+            # Создаем объект YouTube с помощью yt-dlp
+            yt = {
+                'title': info['title'],
+                'length': info['duration'],
+                'thumbnail_url': info['thumbnail'],
+            }
 
             player.add_to_queue(yt, stream_url, interaction)
 
             if not player.voice_client.is_playing():
                 player.play()
 
-            await interaction.followup.send(f"{yt.title} добавлен в очередь.", ephemeral=True)
+            await interaction.followup.send(f"{yt['title']} добавлен в очередь.", ephemeral=True)
 
         except Exception as e:
             await interaction.followup.send(f'Произошла ошибка: {e}', ephemeral=True)
